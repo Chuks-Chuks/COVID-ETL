@@ -1,0 +1,25 @@
+{
+  "rds_connection_details": {
+    "sensitive": true,
+    "type": [
+      "object",
+      {
+        "database": "string",
+        "endpoint": "string",
+        "port": "number",
+        "username": "string"
+      }
+    ],
+    "value": {
+      "database": "postgres",
+      "endpoint": "covid-postgres.c7w6gqmgov9w.eu-north-1.rds.amazonaws.com:5432",
+      "port": 5432,
+      "username": "pi_dev"
+    }
+  },
+  "rds_instance_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "db-DCC6QATYQY4D3HYSL6OVIPU2ME"
+  }
+}
