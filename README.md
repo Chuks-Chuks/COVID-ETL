@@ -1,0 +1,1 @@
+This is an enhanced, production-grade ETL pipeline that integrates dbt, Snowflake, AWS S3, and advanced DevOps practices covering cloud migrations, modern data stack, CI/CD, and data quality. This project will simulate enterprise-grade workflows while ensuring the granular data of COVID is preserved for downstream users
