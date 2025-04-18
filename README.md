@@ -15,4 +15,4 @@ This is an enhanced, production-grade ETL pipeline that integrates dbt, Postgres
 
 ### **Architecture**
 ```
-Extract (API) → Stage (AWS S3) → Load (Snowflake) → Transform (dbt) → Validate (GE/dbt) → Visualize (Power BI)
+Extract (API) → Stage (AWS S3) → Load (Postgres) → Transform (dbt) → Validate (GE/dbt) → Visualize (Power BI)
