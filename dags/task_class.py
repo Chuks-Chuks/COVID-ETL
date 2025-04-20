@@ -56,7 +56,7 @@ class Covid_Etl:
             a json object containing the information.
         """
         endpoint = self.covid_apininja_pop_endpoint
-        API_KEY =  os.get_env('API_KEY')
+        API_KEY =  os.getenv('API_KEY')
         PARAMETERS = {
             'X-Api-Key': API_KEY,
             'country': country_identifier
@@ -117,7 +117,7 @@ class Covid_Etl:
         return population  
 
 
-    def fetch_country_details(self):
+    def _fetch_country_details(self):
         """
         Fetches all the names and additional details of every country in the world:
         
@@ -134,7 +134,7 @@ class Covid_Etl:
         data = response.json()
         return data
     
-    def crosscheck_country(self, **country_details):
+    def _crosscheck_country(self, **country_details):
         """
         Fetches country name after cross checking the detailsusing either country or ISO code: 
 
@@ -151,7 +151,7 @@ class Covid_Etl:
         all_countries = country_details.get('all_countries')
 
         country_name = [([all_countries[correct_country]['name']['common'], all_countries[correct_country]['name']['official']], all_countries[correct_country]['cca3']) for correct_country in range(len(all_countries)) if all_countries[correct_country]['cca3'] in iso]
-        if country_name == []:
+        if not country_name:
             country_name = [([all_countries[correct_country]['name']['common'], all_countries[correct_country]['name']['official']], all_countries[correct_country]['cca3']) for correct_country in range(len(all_countries)) if country in all_countries[correct_country]['name']['common']]
         return country_name
     
@@ -179,8 +179,7 @@ class Covid_Etl:
         """
         p_response = r.get(url=self.province_endpoint, params={'iso': iso})
         p_data = p_response.json()
-        return p_data
+        return p_data['data']
     
-
-    def hello(self):
-        pass
+f = Covid_Etl()
+print(f.get_provinces('CHN'))
