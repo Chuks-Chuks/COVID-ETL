@@ -196,7 +196,7 @@ class CountryExtraction(CovidAPIClient):
 
     def get_regions(self) -> pd.DataFrame:
         """
-        Fetch all the regions from the HSBU database via API
+        Fetch all the regions from the John Hopkins Witing School of Engineering database via API
 
         Returns:
             A pandas Dataframe containing the ISO3 code and names of the regions documented in the database
@@ -214,7 +214,7 @@ class ProvinceExtraction(CovidAPIClient):
     """
     def get_provinces(self, iso: str) -> pd.DataFrame:
         """
-        Fetch all the regions from the HSBU database via API
+        Fetch all the regions from the John Hopkins Witing School of Engineering database via API
 
         Args:
             Takes the iso of the country e.g. for Nigeria, 'NGA'
@@ -224,9 +224,16 @@ class ProvinceExtraction(CovidAPIClient):
         """
         data = self._get_endpoint(endpoint='provinces', params={'iso': iso})
         return pd.DataFrame(data['data'])
+    
+
 class CovidExtractor:
     """
-    This ochestrates all extraction classes.
+    This ochestrates all extraction processes.
     """
+    def __init__(self):
+        self.country_handling = CountryExtraction()
+        self.population = PopulationExtraction()
+        self.province_handling = ProvinceExtraction()
 
+    
 
