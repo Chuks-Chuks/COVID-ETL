@@ -2,7 +2,8 @@ import requests as r
 from dotenv import load_dotenv
 import os
 import pandas as pd
-from typing import Dict, List, Tuple
+# rom typing import Dict, List, Tuple, Optional
+from datetime import datetime, timedelta
 import logging
 
 
@@ -17,7 +18,7 @@ class CovidAPIClient:
         self.session.headers.update({'Accept': 'application/json'})
         self.logger = logging.getLogger(__name__)
 
-    def _get_endpoint(self, endpoint: str, params: Dict = None) -> Dict:
+    def _get_endpoint(self, endpoint: str, params: dict | None = None) -> dict:
         try:
             response = self.session.get(f'{self.COVID_ENDPOINT}/{endpoint}', params=params)
             response.raise_for_status()
@@ -142,7 +143,7 @@ class PopulationExtraction:
         data = response.json()
         return data
     
-    def _crosscheck_country(self, **country_details) -> List[tuple]:
+    def _crosscheck_country(self, **country_details) -> list[tuple]:
         """
         Fetches country name after cross checking the details using either country or ISO code: 
 
@@ -205,8 +206,28 @@ class CountryExtraction(CovidAPIClient):
 
         return pd.DataFrame(data['data'])[['iso', 'name']]
 
-    def get_covid_details(self):
-        pass
+    def get_covid_details(self, iso: str, date_string: str | None = None) -> pd.DataFrame:
+        """
+        Fetches the COVID data for a specific date and country using the ISO code
+
+        Args:
+            iso: the ISO3 code for the country
+            date: the specific date within the COVID timeframe. The format is DD-MM-YYYY
+        """
+        # Check for edge case: the earliest date of the COVID-data
+        date_string = datetime.strptime(date_string, "%d-%m-%Y")
+        parameters = {
+            'iso': iso,
+            'date': date_string.strftime('%Y-%m-%d')
+        }
+
+        try:
+            data = self._get_endpoint('reports', parameters)
+            if not data['data']:
+                raise ValueError(f'No data for {date_string}')
+            return pd.DataFrame(data['data'])
+        except (ValueError, KeyError):
+            pass
     
 class ProvinceExtraction(CovidAPIClient):
     """
@@ -235,5 +256,7 @@ class CovidExtractor:
         self.population = PopulationExtraction()
         self.province_handling = ProvinceExtraction()
 
+        countries = self.country_handling.get_regions()
+        
     
 
