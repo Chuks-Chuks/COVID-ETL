@@ -147,8 +147,7 @@ class PopulationExtraction:
         """
         Fetches country name after cross checking the details using either country or ISO code: 
 
-        Args:
-        all_countries: a json object containing all the required names of all the countries in the world. 
+        Args: 
         country: country name (e.g., 'China')
         iso: ISO code (e.g., 'CHN')
 
@@ -157,7 +156,7 @@ class PopulationExtraction:
         """
         country = country_details.get('country')
         iso = country_details.get('iso')
-        all_countries = country_details.get('all_countries')
+        all_countries = self.all_countries
 
         country_names = [([all_countries[correct_country]['name']['common'], all_countries[correct_country]['name']['official']], all_countries[correct_country]['cca3']) for correct_country in range(len(all_countries)) if all_countries[correct_country]['cca3'] in iso]
         if not country_names:
@@ -170,7 +169,6 @@ class PopulationExtraction:
         This is the method to call as all other methods are modularised to serve varying purposes. 
 
         Args:
-            all_countries: a json object containing all the required names of all the countries in the world. 
             country: country name (e.g., 'China')
             iso: ISO code (e.g., 'CHN')
 
@@ -179,7 +177,7 @@ class PopulationExtraction:
         """
         iso = kwargs.get('iso')
         country = kwargs.get('country')
-        all_countries = kwargs.get(self.all_countries)
+        all_countries = self.all_countries
 
         population = self._get_population(iso)
         if not population:
@@ -194,7 +192,10 @@ class CountryExtraction(CovidAPIClient):
     """
     Handles the extraction of the country's details
     """
-
+    def __init__(self):
+        super().__init__()
+        self.EARLIEST_COVID_DATE = datetime(2019, 12, 1)
+        self.LATEST_COVID_DATE = datetime(2023, 3, 9)
     def get_regions(self) -> pd.DataFrame:
         """
         Fetch all the regions from the John Hopkins Witing School of Engineering database via API
@@ -206,7 +207,7 @@ class CountryExtraction(CovidAPIClient):
 
         return pd.DataFrame(data['data'])[['iso', 'name']]
 
-    def get_covid_details(self, iso: str, date_string: str | None = None) -> pd.DataFrame:
+    def get_covid_details(self, iso: str, date_string: str) -> pd.DataFrame:
         """
         Fetches the COVID data for a specific date and country using the ISO code
 
@@ -215,7 +216,17 @@ class CountryExtraction(CovidAPIClient):
             date: the specific date within the COVID timeframe. The format is DD-MM-YYYY
         """
         # Check for edge case: the earliest date of the COVID-data
+        
+        
+
         date_string = datetime.strptime(date_string, "%d-%m-%Y")
+
+        if date_string < self.EARLIEST_COVID_DATE:
+            raise ValueError(f'The date {date_string} is earlier than the earliest recorded COVID case')
+        
+        if date_string > self.LATEST_COVID_DATE:
+            raise ValueError(f'The date is ahead of the latest recorded COVID date in the database')
+        
         parameters = {
             'iso': iso,
             'date': date_string.strftime('%Y-%m-%d')
@@ -224,10 +235,12 @@ class CountryExtraction(CovidAPIClient):
         try:
             data = self._get_endpoint('reports', parameters)
             if not data['data']:
-                raise ValueError(f'No data for {date_string}')
+                self.logger.warning(f'No data found for {iso} on {date_string}')
+                return pd.DataFrame()
             return pd.DataFrame(data['data'])
-        except (ValueError, KeyError):
-            pass
+        except (ValueError, KeyError) as e:
+            self.logger.error(f'Failed to find any information: {str(e)}')
+            raise
     
 class ProvinceExtraction(CovidAPIClient):
     """
@@ -257,6 +270,5 @@ class CovidExtractor:
         self.province_handling = ProvinceExtraction()
 
         countries = self.country_handling.get_regions()
-        
-    
 
+    
