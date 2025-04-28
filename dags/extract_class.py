@@ -28,6 +28,7 @@ class CovidAPIClient:
             raise
 
 class PopulationExtraction:
+    load_dotenv()
     """Handles retrieving population information from varying API endpoints"""
     def __init__(self):
         self.WB_ENDPOINT = 'https://api.worldbank.org/v2/country/{iso}/indicator/SP.POP.TOTL'
@@ -35,6 +36,9 @@ class PopulationExtraction:
         self.get_population_retry_endpoint = 'https://d6wn6bmjj722w.population.io/1.0/population/2020/{country_name}'
         self.all_countries_name_endpoint = 'https://restcountries.com/v3.1/all'
         self.all_countries = self._fetch_country_details()
+        self.logger = logging.getLogger(__name__)
+        
+
     def _get_population(self, iso: str) -> int:
         """
         Fetches the population of a given country based on the ISO code using the World Bank API
@@ -56,6 +60,7 @@ class PopulationExtraction:
             return data[1][0]['value']
         except (TypeError, IndexError):
             return None
+        
     def _enter_parameters(self, country_identifier: str):
         """
         Fetches the details of a country including its population. 
@@ -75,6 +80,7 @@ class PopulationExtraction:
         response = r.get(self.enter_parameters_endpoint, PARAMETERS)
         data = response.json()
         return data
+    
     def _get_population_retry(self, country_name: str) -> int:
         """
         Fetches the population of a desired country when the original function fails
@@ -111,14 +117,14 @@ class PopulationExtraction:
         if country:
             data = self._enter_parameters(country_identifier=country)
             try:
-                print(country)
                 population = data['historical_population'][3]['population'] # This gets the population of the requested country
                 # p.pprint(data['historical_population'][3]['year']) 
-            except TypeError:
+            except (TypeError, KeyError):
                 try:
+                    print('Now here, trying')
                     data = self._enter_parameters(country_identifier=iso)
                     population = data['historical_population'][3]['population'] # This gets the population of the requested country
-                except TypeError:
+                except (TypeError, KeyError):
                     try:
                         population = self._get_population_retry(country_name=official_name)
                     except KeyError:
@@ -182,6 +188,7 @@ class PopulationExtraction:
         population = self._get_population(iso)
         if not population:
             country_details = self._crosscheck_country(country=country, iso=iso, all_countries=all_countries)
+            print(country_details)
             try:
                 population = self._get_country_population(country=country_details[0][0][0], iso=country_details[0][1], official_name=country_details[0][0][1])
             except IndexError:
@@ -198,7 +205,7 @@ class CountryExtraction(CovidAPIClient):
         self.LATEST_COVID_DATE = datetime(2023, 3, 9)
     def get_regions(self) -> pd.DataFrame:
         """
-        Fetch all the regions from the John Hopkins Witing School of Engineering database via API
+        Fetch all the regions from a copy of the John Hopkins Witing School of Engineering database via API
 
         Returns:
             A pandas Dataframe containing the ISO3 code and names of the regions documented in the database
@@ -214,13 +221,13 @@ class CountryExtraction(CovidAPIClient):
         Args:
             iso: the ISO3 code for the country
             date: the specific date within the COVID timeframe. The format is DD-MM-YYYY
+
+        :returns:
+            a pandas dataframe containing the details of the COVID infection on the specified day for a country
         """
-        # Check for edge case: the earliest date of the COVID-data
         
-        
-
         date_string = datetime.strptime(date_string, "%d-%m-%Y")
-
+        # Check for edge case: the earliest and latest date of the COVID-data
         if date_string < self.EARLIEST_COVID_DATE:
             raise ValueError(f'The date {date_string} is earlier than the earliest recorded COVID case')
         
@@ -254,7 +261,7 @@ class ProvinceExtraction(CovidAPIClient):
             Takes the iso of the country e.g. for Nigeria, 'NGA'
 
         Returns:
-            a json object containing the ISO3 of the country the province belongs to, longitude and latitude of the province and name of the province
+            a pandas dataframe containing the ISO3 of the country the province it belongs to, longitude and latitude of the province and name of the province
         """
         data = self._get_endpoint(endpoint='provinces', params={'iso': iso})
         return pd.DataFrame(data['data'])
@@ -265,10 +272,66 @@ class CovidExtractor:
     This ochestrates all extraction processes.
     """
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.country_handling = CountryExtraction()
         self.population = PopulationExtraction()
         self.province_handling = ProvinceExtraction()
 
-        countries = self.country_handling.get_regions()
+    def extract_covid_information(self) -> dict[str, pd.DataFrame]:
+        """
+        This extracts all the information on the complete history for COVID for all countries
+        """
 
+        countries = self.country_handling.get_regions()
+        date_range = self._generate_covid_date_range()
+        
+        all_data = [] # Captures all the data required
+        population_data = [] # Captures the population data
+        province_data = [] # Captures the population data for each province to allow for the star schema transformation later on
+
+        for country in countries.itertuples():
+            iso = country.iso
+            self.logger.info(f'Processing {country.name} with ISO as {iso}')
+
+            # Fetch static data (population and provincial data)
+            population_data.append(self._get_population(iso=iso))
+            # province_data.extend(self._)
+
+
+    def _generate_covid_date_range(self) -> pd.DatetimeIndex:
+        """
+        Generates the date range from first to last COVID date
+
+        :returns:
+            A DatetimeIndex object (an array) of the dates from the beginnig of COVID until the last day
+        """
+        return pd.date_range(
+            start=self.country_handling.EARLIEST_COVID_DATE,
+            end=self.country_handling.LATEST_COVID_DATE,
+            freq='D'
+        )
     
+    def _get_population(self, iso: str) -> dict:
+        """
+        This fetches the country's ISO and population from the Population Extraction class
+
+        :returns:
+            A dictionary of the country's ISO and population
+        """
+        try:
+            population = self.population.return_population(iso=iso)
+            return {
+                'iso': iso,
+                'population': population
+            }
+        except Exception as e:
+            self.logger.error(f'Failed to fetch population for {iso}: {str(e)}')
+            return {
+                'iso': iso,
+                'population': None
+            }
+
+check = CovidExtractor()
+china = check.extract_covid_information()
+
+print(china)    
