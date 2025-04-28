@@ -295,8 +295,8 @@ class CovidExtractor:
 
             # Fetch static data (population and provincial data)
             population_data.append(self._get_population(iso=iso))
-            # province_data.extend(self._)
-
+            province_data.extend(self._get_province_records(iso=iso))
+        print(province_data)
 
     def _generate_covid_date_range(self) -> pd.DatetimeIndex:
         """
@@ -330,7 +330,25 @@ class CovidExtractor:
                 'iso': iso,
                 'population': None
             }
+    
+    def _get_province_records(self, iso: str) -> list:
+        """
+        Retrieve all Province information
+        
+        :returns:
+            A list containing dictionaries of ISOs as key and Values of the provincial details
+        """
+        try:
+            provinces = self.province_handling.get_provinces(iso=iso)
+            return provinces.to_dict('records') # Converts the dataframe to a dictionary outlining the records. 
+        except TypeError as e:
+            self.logger.error(f'Failed to process for {iso}: {str(e)}')
+            return []
 
+    def _process_country_date(self):
+        pass
+
+# Testing out the classes/methods
 check = CovidExtractor()
 china = check.extract_covid_information()
 
