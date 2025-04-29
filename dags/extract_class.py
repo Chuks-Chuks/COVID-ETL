@@ -214,19 +214,18 @@ class CountryExtraction(CovidAPIClient):
 
         return pd.DataFrame(data['data'])[['iso', 'name']]
 
-    def get_covid_details(self, iso: str, date_string: str) -> pd.DataFrame:
+    def get_covid_details(self, iso: str, date_string: pd.Timestamp) -> pd.DataFrame:
         """
         Fetches the COVID data for a specific date and country using the ISO code
 
         Args:
             iso: the ISO3 code for the country
-            date: the specific date within the COVID timeframe. The format is DD-MM-YYYY
+            date: the specific date within the COVID timeframe. It takes a Timestamp object
 
         :returns:
             a pandas dataframe containing the details of the COVID infection on the specified day for a country
         """
         
-        date_string = datetime.strptime(date_string, "%d-%m-%Y")
         # Check for edge case: the earliest and latest date of the COVID-data
         if date_string < self.EARLIEST_COVID_DATE:
             raise ValueError(f'The date {date_string} is earlier than the earliest recorded COVID case')
@@ -236,7 +235,7 @@ class CountryExtraction(CovidAPIClient):
         
         parameters = {
             'iso': iso,
-            'date': date_string.strftime('%Y-%m-%d')
+            'date': date_string.strftime('%Y-%m-%d') # converting to a string to allow interaction with the API
         }
 
         try:
@@ -296,8 +295,18 @@ class CovidExtractor:
             # Fetch static data (population and provincial data)
             population_data.append(self._get_population(iso=iso))
             province_data.extend(self._get_province_records(iso=iso))
-        print(province_data)
 
+            # Fetching all covid related data such (deaths, recoveries etcetera)
+
+            country_data = self._process_country_date(iso=iso, date_range=date_range)
+            all_data.extend(country_data)
+        
+        return {
+            'daily_reports': pd.concat(all_data, ignore_index=True),
+            'popullation': pd.DataFrame(population_data),
+            'provinces': pd.DataFrame(province_data)
+        }
+    
     def _generate_covid_date_range(self) -> pd.DatetimeIndex:
         """
         Generates the date range from first to last COVID date
@@ -345,11 +354,30 @@ class CovidExtractor:
             self.logger.error(f'Failed to process for {iso}: {str(e)}')
             return []
 
-    def _process_country_date(self):
-        pass
+    def _process_country_date(self, iso: str, date_range: pd.DatetimeIndex) -> list:
+        """
+        Process daily COVID-19 data for a single country
+
+        :params:
+            iso: this is the ISO3 of the country involved
+            date_range: a DatetimeIndex object containing the earliest covid date to the latest COVID date with a daily frequency
+        
+        :returns:
+            A list containing the daily data of COVID
+        """
+        country_data = []
+
+        for date in date_range:
+            try:
+                daily_df = self.country_handling.get_covid_details(iso=iso, date_string=date)
+                if not daily_df.empty:
+                    daily_df.insert(0, 'iso', iso)
+                    country_data.append(daily_df)
+            except TypeError as te:
+                self.logger.warning(f'Skipping {iso} on {date}: {str(te)}')
+                continue
+        return country_data
 
 # Testing out the classes/methods
-check = CovidExtractor()
-china = check.extract_covid_information()
-
-print(china)    
+# testing = CovidExtractor()
+# print(testing.extract_covid_information())
