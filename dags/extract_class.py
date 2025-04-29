@@ -201,7 +201,7 @@ class CountryExtraction(CovidAPIClient):
     """
     def __init__(self):
         super().__init__()
-        self.EARLIEST_COVID_DATE = datetime(2019, 12, 1)
+        self.EARLIEST_COVID_DATE = datetime(2020, 1, 21)
         self.LATEST_COVID_DATE = datetime(2023, 3, 9)
     def get_regions(self) -> pd.DataFrame:
         """
