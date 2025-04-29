@@ -3,7 +3,18 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from datetime import datetime, timedelta
 import pandas as pd
-import requests 
+from extract_class import CovidExtractor
+
+# Creating function to return Covid data
+
+def _return_covid_data():
+	"""
+	This function returns the COVID data from the extract class
+	"""
+	extract = CovidExtractor()
+	return extract.extract_covid_information()
+
+
 
 default_args = {
 	'owner': 'philip',
@@ -17,4 +28,8 @@ with DAG(
 	start_date=datetime(2023, 1, 1),
 	schedule_interval='@daily',
 ) as dag:
-	pass
+	
+	extract_task = PythonOperator(
+		task_id='extract_historical_data',
+		python_callable=_return_covid_data
+	)
