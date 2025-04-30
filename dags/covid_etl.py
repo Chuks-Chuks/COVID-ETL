@@ -14,8 +14,6 @@ def _return_covid_data():
 	extract = CovidExtractor()
 	return extract.extract_covid_information()
 
-
-
 default_args = {
 	'owner': 'philip',
 	'retries': 1,
@@ -28,7 +26,7 @@ with DAG(
 	start_date=datetime(2023, 1, 1),
 	schedule_interval='@daily',
 ) as dag:
-	
+	# Adding the extract task to fetch all historical covid data
 	extract_task = PythonOperator(
 		task_id='extract_historical_data',
 		python_callable=_return_covid_data
